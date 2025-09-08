@@ -1,0 +1,5 @@
+#!/bin/bash
+ 
+file="$1"
+ 
+find "$file" -name "*.txt" -type f -size -1b

@@ -1,0 +1,4 @@
+#!/bin/bash
+ 
+read way
+find . -name "$way" -type f
