@@ -1,4 +1,0 @@
-file="$1"
-chmod a+:r "$file"
-chmod a+:x "$file"
-sudo cp "$file" /usr/local/bin/

@@ -1,7 +1,0 @@
-file="$1"
-first_line=$(head -n 1 "$file")
-if [[ "$first_line" == *"/*"* ]] || [[ "$first_line" == *"//"* ]]; then
-        echo "YES"
-else
-        echo "NO"
-fi

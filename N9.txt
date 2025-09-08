@@ -1,5 +1,0 @@
-#!/bin/bash
- 
-file="$1"
- 
-sed -i 's/    /\t/g' "$file"

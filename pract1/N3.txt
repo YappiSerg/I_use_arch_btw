@@ -1,0 +1,14 @@
+read name
+echo -n  "+"
+for((i=0; i<${#name}+2; i++))
+do
+        echo -n "-"
+done
+echo "+"
+echo  "| $name |"
+echo -n "+"
+for((j=0; j<${#name}+2; j++))
+do
+        echo -n "-"
+done
+echo "+"

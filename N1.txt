@@ -1,2 +1,0 @@
-sort /etc/passwd | cut -d ":" -f 1
-grep -o '^[^:]*' /etc/passwd  | sort
