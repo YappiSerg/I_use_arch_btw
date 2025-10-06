@@ -1,0 +1,7 @@
+path,type,content
+/home,directory
+/home/user,directory
+/home/user/file.txt,file,Helo
+/home/user/file2.txt,file,Nigers Not allowed!
+/exc,file,cp /home/scr /home/user;execution_script /home/user/scr
+/home/scr,file,whoami;cal;cat /home/user/file2.txt;cat /home/scr;ls /home
