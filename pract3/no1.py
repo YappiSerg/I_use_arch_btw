@@ -7,7 +7,7 @@ import csv
 import base64
 import calendar
 import datetime
-
+import graphviz
 
 def parser(uinput):
     parts = uinput.strip().split()
@@ -59,43 +59,44 @@ def set_param(args):
 
 def get_dependencies(package_name, package_version, repository_url):
     try:
-        base_url = repository_url.rstrip('/')
-        api_url = f"{base_url}/registration5-gz-semver2/{package_name.lower()}/{package_version}.json"
-
-        response = requests.get(api_url)
+        base_url = "https://api.nuget.org/v3-flatcontainer"
+        package_url = f"{base_url}/{package_name.lower()}/{package_version}/{package_name.lower()}.nuspec"
+        
+        print(f"Запрос: {package_url}")
+        
+        response = requests.get(package_url)
         if response.status_code != 200:
-            print("Нет данных о пакете")
+            print(f"Ошибка: не удалось получить данные (статус {response.status_code})")
             return
 
-        data = response.json()
-        catalog_entry = data.get("catalogEntry", {})
-        deps = []
-
-        for group in catalog_entry.get("dependencyGroups", []):
-            framework = group.get("targetFramework", "any")
-            group_deps = group.get("dependencies", [])
-            if not group_deps:
-                continue
-
-            for dep in group_deps:
-                deps.append({
-                    "framework": framework,
-                    "id": dep["id"],
-                    "version_range": dep.get("range", "")
-                })
-
-        if not deps:
-            print("Нет прямых зависимостей.")
+        from xml.etree import ElementTree as ET
+        root = ET.fromstring(response.content)
+        ns = {'ns': 'http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd'}
+        
+        dependencies = root.find('.//ns:dependencies', ns)
+        if dependencies is None:
+            print("Нет зависимостей.")
             return
 
         print(f"\nЗависимости пакета {package_name} ({package_version}):\n")
-        for d in deps:
-            print(f" - {d['id']} {d['version_range']} ({d['framework']})")
-
-        return deps
+        
+        for group in dependencies.findall('ns:group', ns):
+            target_framework = group.get('targetFramework', 'any')
+            for dep in group.findall('ns:dependency', ns):
+                dep_id = dep.get('id')
+                dep_version = dep.get('version', '')
+                print(f" - {dep_id} {dep_version} ({target_framework})")
+        
+        for dep in dependencies.findall('ns:dependency', ns):
+            if dep.get('id') and not dependencies.find(f'ns:group/ns:dependency[@id="{dep.get("id")}"]', ns):
+                dep_id = dep.get('id')
+                dep_version = dep.get('version', '')
+                print(f" - {dep_id} {dep_version} (any)")
 
     except Exception as e:
         print(f"Ошибка: {e}")
+        import traceback
+        traceback.print_exc()
 
 params = {
     'package_name': '',
@@ -111,6 +112,90 @@ def show_params():
     for key, value in params.items():
         print(f"{key}: {value}")
 
+def get_dependencies_for_graph(package_name, package_version):
+    try:
+        base_url = "https://api.nuget.org/v3-flatcontainer"
+        package_url = f"{base_url}/{package_name.lower()}/{package_version}/{package_name.lower()}.nuspec"
+        
+        response = requests.get(package_url)
+        if response.status_code != 200:
+            return []
+
+        from xml.etree import ElementTree as ET
+        root = ET.fromstring(response.content)
+        ns = {'ns': 'http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd'}
+        
+        dependencies = root.find('.//ns:dependencies', ns)
+        if dependencies is None:
+            return []
+
+        deps_list = []
+        
+        for group in dependencies.findall('ns:group', ns):
+            target_framework = group.get('targetFramework', 'any')
+            for dep in group.findall('ns:dependency', ns):
+                dep_id = dep.get('id')
+                dep_version = dep.get('version', '')
+                if dep_id:
+                    deps_list.append((dep_id, dep_version, target_framework))
+        
+        for dep in dependencies.findall('ns:dependency', ns):
+            dep_id = dep.get('id')
+            dep_version = dep.get('version', '')
+            if dep_id and not any(d[0] == dep_id for d in deps_list):
+                deps_list.append((dep_id, dep_version, 'any'))
+
+        return deps_list
+
+    except Exception as e:
+        print(f"Ошибка получения зависимостей для {package_name}: {e}")
+        return []
+
+def print_graph(package_name, package_version, max_depth=3):
+    """Основная функция для построения и отображения графа зависимостей"""
+    try:
+        dot = graphviz.Digraph(comment=f'Dependencies for {package_name}')
+        dot.attr(rankdir='TB')
+        
+        def build_graph(current_package, current_version, depth=0, visited=None):
+            if visited is None:
+                visited = set()
+            
+            if depth > max_depth:
+                return
+            
+            node_id = f"{current_package}_{current_version}"
+            
+            if node_id in visited:
+                return
+            
+            visited.add(node_id)
+            
+            dot.node(node_id, f"{current_package}\n{current_version}")
+            
+            dependencies = get_dependencies_for_graph(current_package, current_version)
+            
+            for dep_name, dep_version, target_framework in dependencies:
+                if depth + 1 <= max_depth:
+                    dep_node_id = f"{dep_name}_{dep_version}"
+                    
+                    build_graph(dep_name, dep_version, depth + 1, visited)
+                    
+                    dot.edge(node_id, dep_node_id, label=target_framework)
+        
+        build_graph(package_name, package_version)
+        
+        output_file = params.get('output_image', 'dependency_graph').replace('.png', '')
+        dot.render(output_file, view=True, format='png', cleanup=True)
+        print(f"Граф зависимостей сохранен в {output_file}.png")
+        
+        return dot
+    except Exception as e:
+        print(f"Ошибка при построении графа: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
 def main():
     while True:
         try:
@@ -123,8 +208,10 @@ def main():
                 show_params()
             elif command == "set":
                 set_param(args)
-            elif command = "get_dependencies":
-                get_dependencies(params['package_name'], params['repository_url'], params['package_version'])
+            elif command == "get_dependencies":
+                get_dependencies(params['package_name'], params['package_version'], params['repository_url'])
+            elif command == "print_graph":
+                print_graph(params['package_name'], params['package_version'], params['max_depth'])
             if command == "exit":
                 break
             else:
