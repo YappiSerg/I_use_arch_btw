@@ -105,29 +105,18 @@ def value_noise(x, y, scale):
     return lerp(n0, n1, sy)
 
 
-def fractal_noise(
-    width,
-    height,
-    octaves=1,
-    persistence=0.5,
-    lacunarity=4.0,
-    base_scale=0.1,
-):
-    amplitude = 1.0
-    frequency = 1.0
-    max_amplitude = 0.0
-    value = 0
+def fractal_noise(x, y, res=0.09, octaves=3, persistence=0.6):
+    noise = 0
+    frequency = 1
+    amplitude = 1
     for _ in range(octaves):
-        scale = max(1, int(base_scale / frequency))
-        layer = value_noise(width, height, scale)
-        value += layer * amplitude
-
-        max_amplitude += amplitude
+        noise += amplitude * value_noise(x, y, frequency*res)
+        frequency *= 2
         amplitude *= persistence
-        frequency *= lacunarity
-
-    return value / max_amplitude
+    return noise
 
 def shader(x, y):
-    return fractal_noise(x, y), fractal_noise(x, y), fractal_noise(x, y)
+    return fractal_noise(x, y), fractal_noise(x, y), 255
+
+
 main(shader)
