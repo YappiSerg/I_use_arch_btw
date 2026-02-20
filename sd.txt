@@ -1,0 +1,67 @@
+#include <iostream>
+#include <random>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <iomanip>
+using namespace std;
+
+class dog
+{
+public:
+    dog() {}
+    dog(bool isMale) : alive(true), male_female(isMale), age(0), counter(0) {}
+    ~dog() {};
+    bool alive;
+    bool male_female;
+    int age;
+    int counter;
+};
+
+
+int main() {
+    vector<dog> a;
+    a.push_back(dog(true));
+    a.push_back(dog(false));
+    int halfyears = 20;
+    int amount = 2;
+
+    //stat
+    int ferth = 0;
+    int males = 1;
+    int females = 1;
+    int born = 0;
+    for (int j = 0; j != halfyears; j++) {
+        cout << "HALFYEAR: " << j << endl;
+        ferth = 0; born = 0;
+        for (int i = 0; i != a.size(); i++) {
+            a[i].age += 1;
+            if (a[i].age == 24) {
+                a[i].alive = false;
+                amount -= 1;
+                if (a[i].male_female) { males -= 1; }
+                else { females -= 1; }
+            }
+            if (!a[i].male_female and a[i].alive) {
+                a[i].counter += 1;
+                if (a[i].counter == 2) {
+                    a[i].counter = 0;
+                    ferth += 1;
+                    amount += 4;
+                    males += 2; females += 2;
+                    born += 4;
+                }
+            }
+        }
+
+        cout << "dogs: " << amount << endl << "male: " << males << endl << "female: " << females << endl << "born: " << born << endl << endl;
+        for (int i = 0; i != ferth; i++) {
+            a.push_back(dog(true));
+            a.push_back(dog(false));
+            a.push_back(dog(true));
+            a.push_back(dog(false));
+        }
+    
+    }
+    cout << "total: " << amount;
+}
